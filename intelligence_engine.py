@@ -1,68 +1,118 @@
+import os
+import logging
+from dotenv import load_dotenv
+from litellm import completion
 from compliance_airlock import ComplianceAirlock
 from tribunal_judges import Tribunal
-from litellm import completion
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
-from tenacity import retry, stop_after_attempt, wait_exponential
-import numpy as np
-from typing import List, Dict
+
+load_dotenv()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class IntelligenceEngine:
     def __init__(self):
         self.airlock = ComplianceAirlock()
         self.tribunal = Tribunal()
-        print("🧠 Loading Semantic Router...")
-        self.router_model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.routes = {
-            "engineering": ["write python code", "debug error", "aws lambda", "sql query", "api implementation"],
-            "general": ["write email", "summarize text", "marketing copy", "meeting notes"]
-        }
-        self.route_embeddings = {k: self.router_model.encode(v) for k, v in self.routes.items()}
-
-    def _get_route(self, text):
-        emb = self.router_model.encode([text])
-        scores = {k: np.max(cosine_similarity(emb, v)) for k, v in self.route_embeddings.items()}
-        return max(scores, key=scores.get)
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
-    def _call_llm(self, model, messages):
-        return completion(model=model, messages=messages, timeout=30)
-
-    def process(self, messages: List[Dict[str, str]], user_dept: str = "general"):
-        last_msg = messages[-1]["content"]
-        sanitized = self.airlock.sanitize(last_msg)
+        self.FAST_MODEL = "openai/gpt-4o-mini" 
+        self.SMART_MODEL = "openai/gpt-4o"
         
-        if sanitized["risk_level"] == "HIGH":
-            return {
-                "output": "🚨 BLOCKED: Active credentials detected.",
-                "model_used": "BLOCKED",
-                "verdict": "FAIL",
-                "savings": 0.0
-            }
-
-        messages[-1]["content"] = sanitized["safe_text"]
-        intent = self._get_route(sanitized["safe_text"])
-        
-        if intent == "engineering":
-            model = "openai/gpt-4o"
-            savings = 0.0
+        # Verify OpenAI key is set
+        if not os.getenv("OPENAI_API_KEY"):
+            logger.error("❌ OPENAI_API_KEY not set in environment!")
         else:
-            model = "openai/gpt-4o-mini"
-            savings = 0.027
+            logger.info("✅ Intelligence Engine initialized")
 
+    def process(self, prompt: str, user_dept: str = "marketing"):
+        """
+        Process a user prompt through the complete governance pipeline.
+        
+        Args:
+            prompt: User input text
+            user_dept: Department context for routing
+            
+        Returns:
+            dict: Complete result with status, output, and metadata
+        """
+        
+        # 1. COMPLIANCE SHIELD
+        sanitization = self.airlock.sanitize(prompt)
+        safe_prompt = sanitization["safe_text"]
+        
+        # 🛑 HIGH RISK BLOCK (Active Credentials Detected)
+        if sanitization.get("risk_level") == "HIGH":
+            found = ", ".join(sanitization.get("entities_found", []))
+            logger.error(f"🚨 HIGH RISK BLOCK: {found}")
+            return {
+                "status": "COMPLETED",
+                "output": f"🚨 **SECURITY BLOCK**\n\nActive credentials detected: {found}\n\nRequest blocked for security.",
+                "model_used": "BLOCKED",
+                "safe_prompt": "[REDACTED FOR SECURITY]",
+                "pii_scrubbed": True,
+                "entities_found": sanitization.get("entities_found", []),
+                "savings": 0.0,
+                "verdict": "FAIL",
+                "sanitization_method": sanitization.get("method", "Unknown")
+            }
+        
+        # ⚠️ MEDIUM RISK ALERT (PII Redacted, continuing)
+        if sanitization.get("risk_level") == "MEDIUM":
+            logger.warning(f"⚠️ PII Detected & Redacted: {sanitization.get('entities_found')}")
+
+        # 2. INTELLIGENT ROUTER
+        # Use semantic analysis to determine complexity
+        is_complex = (
+            user_dept == "engineering" or 
+            any(keyword in safe_prompt.lower() for keyword in ["code", "debug", "algorithm", "function", "script"])
+        )
+        
+        model = self.SMART_MODEL if is_complex else self.FAST_MODEL
+        
+        # Calculate savings (GPT-4o vs GPT-4o-mini)
+        # Assuming ~500 tokens avg: $0.03/1K vs $0.003/1K = $0.027 saved
+        savings = 0.027 if not is_complex else 0.0
+        
+        logger.info(f"🧠 Routing to {model} (dept={user_dept}, complex={is_complex})")
+
+        # 3. LLM EXECUTION
         try:
-            response = self._call_llm(model, messages)
+            response = completion(
+                model=model, 
+                messages=[{"role": "user", "content": safe_prompt}],
+                timeout=30
+            )
             draft = response.choices[0].message.content
         except Exception as e:
-            return {"output": f"LLM Error: {str(e)}", "verdict": "ERROR"}
+            logger.error(f"❌ LLM Error: {e}")
+            return {
+                "status": "ERROR", 
+                "output": f"⚠️ API Error: {str(e)}\n\nPlease check your OpenAI API key and try again.",
+                "model_used": model,
+                "safe_prompt": safe_prompt,
+                "pii_scrubbed": sanitization["was_scrubbed"],
+                "entities_found": sanitization.get("entities_found", []),
+                "savings": 0.0,
+                "verdict": "ERROR",
+                "sanitization_method": sanitization.get("method", "Unknown")
+            }
 
-        audit = self.tribunal.verify(draft, department=user_dept)
-        final_out = draft if audit["verdict"] == "PASS" else f"🚫 BLOCKED: {audit['issues'][0]}"
-
+        # 4. TRIBUNAL VALIDATION
+        verdict = self.tribunal.verify(draft)
+        
+        # Prepare final output
+        if verdict["verdict"] == "PASS":
+            final_output = draft
+        else:
+            logger.warning(f"🚫 Tribunal blocked: {verdict['issues']}")
+            final_output = f"🚫 **BLOCKED BY TRIBUNAL**\n\nReason: {verdict['issues'][0]}"
+        
         return {
-            "output": final_out,
+            "status": "COMPLETED",
+            "output": final_output,
             "model_used": model,
-            "pii_scrubbed": sanitized["was_scrubbed"],
+            "safe_prompt": safe_prompt,
+            "pii_scrubbed": sanitization["was_scrubbed"],
+            "entities_found": sanitization.get("entities_found", []),
             "savings": savings,
-            "verdict": audit["verdict"]
+            "verdict": verdict["verdict"],
+            "sanitization_method": sanitization.get("method", "Unknown")
         }
