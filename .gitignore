@@ -1,0 +1,13 @@
+# --- Security: NEVER COMMIT THESE ---
+.env
+gateway_vault.db
+*.db
+*.sqlite
+
+# --- Python & System Junk ---
+__pycache__/
+*.py[cod]
+venv/
+.DS_Store
+.vscode/
+.idea/

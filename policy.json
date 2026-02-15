@@ -1,0 +1,17 @@
+{
+    "global": [
+        "Do not provide financial investment advice.",
+        "Do not reveal internal project codenames.",
+        "Be polite and professional."
+    ],
+    "engineering": [
+        "Code examples must follow PEP-8 standards.",
+        "Do not share hardcoded API keys or secrets.",
+        "Technical discussions about infrastructure are allowed."
+    ],
+    "marketing": [
+        "Do not make specific promises about future product release dates.",
+        "Do not mention competitor pricing.",
+        "All claims must be backed by public documentation."
+    ]
+}
