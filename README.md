@@ -1,4 +1,4 @@
-# 🛡️ Sovereign AI Gateway
+# 🛡️ Sovereign AI Gateway (v4.0)
 ### The "CrowdStrike" for GenAI Cost & Governance
 
 **A local-first "Thick Client" that governs AI usage on the device—saving 40% on API costs without the latency of cloud routers.**
@@ -10,7 +10,7 @@
 ---
 
 ## 🌪️ The "AI Race" Problem
-The AI market is fragmented. Today, **Claude 4.6 Opus** is king. Tomorrow, it might be **GPT-5.3** or **Gemini 3.2 Ultra**.
+The AI market is fragmented. Today, **Claude Opus 4.6** is king. Tomorrow, it might be **GPT-5** or **Gemini 2.0 Ultra**.
 Companies are paralyzed:
 1.  **The "Wealth Drain":** Employees use the "Best" model (e.g., Claude Opus @ $15/1M tokens) for *everything*—even simple "thank you" emails.
 2.  **The "Cloud Router" Tax:** Tools like **Langflow** or **LangChain** add latency and require sending your data to *another* cloud server just to make a decision.
@@ -39,13 +39,13 @@ The Gateway analyzes every prompt locally using a Semantic Router.
 * **Complex Task:** "Debug this Python Race Condition" → Routes to `gpt-4o` ($5.00/1M tokens).
 * **Result:** You get the "Best AI" when you need it, and the "Cheap AI" when you don't.
 
-### 2. The "Context-Aware" Memory
-Even if the Gateway switches from **GPT-4o** (for logic) to **Haiku** (for formatting), it maintains the full conversation history locally. The user never feels the switch.
+### 2. The "Privacy Shield" (Luhn-Validated)
+* **Real-Time Redaction:** Uses the **Luhn Algorithm** to distinguish between fake numbers (e.g., `1234-1234...`) and real credit cards (`4242-4242...`).
+* **Zero-Leak Policy:** Sensitive data is redacted to `<CREDIT_CARD_REDACTED>` *before* it leaves your laptop.
 
-### 3. The "Hardware Agnostic" Engine
-* **On Mac (M1/M2/M3/M4):** Accelerates routing using the **Apple Neural Engine**.
-* **On Windows:** Automatically falls back to **Universal CPU Mode**.
-* *Deployable via Microsoft Intune or Jamf.*
+### 3. The "Tribunal" (Local Judge)
+* **Tone Policing:** A local **Llama 3.2** model reviews every response to ensure it adheres to corporate policy (e.g., no toxic content, no competitor mentions).
+* **Fail-Open Safety:** If the Judge crashes, the system defaults to "Allow" to ensure business continuity.
 
 ---
 
@@ -75,8 +75,7 @@ Even if the Gateway switches from **GPT-4o** (for logic) to **Haiku** (for forma
 3.  **Configure Secrets**
     ```bash
     # Create .env file
-    echo "GATEWAY_API_KEY=$(openssl rand -hex 32)" > .env
-    echo "OPENAI_API_KEY=sk-your-key-here" >> .env
+    echo "OPENAI_API_KEY=sk-your-key-here" > .env
     ```
 
 4.  **Run the Gateway**
@@ -89,8 +88,8 @@ Even if the Gateway switches from **GPT-4o** (for logic) to **Haiku** (for forma
 
 ## 🛡️ Security & Privacy
 * **Zero-Trust:** No data is sent to us. Routing happens on *your* hardware.
-* **PII Redaction:** Microsoft Presidio runs locally to strip Credit Cards/SSNs before they touch the network.
-* **Audit Logs:** A local encrypted SQLite database tracks "Money Saved" for every query.
+* **PII Redaction:** Luhn-Validated Regex v4.0 runs locally to strip Credit Cards/SSNs.
+* **Audit Logs:** A local JSON audit trail tracks "Money Saved" for every query.
 
 ## 📜 License
 MIT License - Open for Enterprise Modification.
